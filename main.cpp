@@ -87,47 +87,94 @@ void deleteTree(TreeNode* root) {
     delete root;
 }
 
-int main() {
-    string line;
-    getline(cin, line);
-
-    // Parse the input
-    // Format: root = [12, 5, 18, 2, 9, 15, 20], cnt = 4
-    size_t rootPos = line.find("root = [");
-    size_t cntPos = line.find("], cnt = ");
-
-    if (rootPos == string::npos || cntPos == string::npos) {
-        cerr << "Invalid input format" << endl;
-        return 1;
-    }
-
-    // Extract the array part
-    size_t arrayStart = rootPos + 8; // length of "root = ["
-    size_t arrayEnd = cntPos;
-    string arrayStr = line.substr(arrayStart, arrayEnd - arrayStart);
-
-    // Extract cnt
-    size_t cntStart = cntPos + 9; // length of "], cnt = "
-    int cnt = stoi(line.substr(cntStart));
-
-    // Parse the array
-    vector<int> nums;
-    stringstream ss(arrayStr);
+vector<int> parseArray(const string& str) {
+    vector<int> result;
+    stringstream ss(str);
     string token;
 
     while (getline(ss, token, ',')) {
         // Trim whitespace
-        size_t start = token.find_first_not_of(" \t\n\r");
-        size_t end = token.find_last_not_of(" \t\n\r");
+        size_t start = token.find_first_not_of(" \t\n\r[]");
+        size_t end = token.find_last_not_of(" \t\n\r[]");
+
         if (start != string::npos && end != string::npos) {
             token = token.substr(start, end - start + 1);
-        }
 
-        if (token == "null" || token == "None") {
-            nums.push_back(-1); // Use -1 to represent null
-        } else {
-            nums.push_back(stoi(token));
+            if (token == "null" || token == "None" || token.empty()) {
+                result.push_back(-1);
+            } else {
+                result.push_back(stoi(token));
+            }
         }
+    }
+
+    return result;
+}
+
+int main() {
+    string line;
+
+    // Try to read all input
+    if (!getline(cin, line)) {
+        return 1;
+    }
+
+    // Try different input formats
+    vector<int> nums;
+    int cnt = 0;
+
+    // Format 1: root = [12, 5, 18, 2, 9, 15, 20], cnt = 4
+    size_t rootPos = line.find("root = [");
+    size_t cntPos = line.find("], cnt = ");
+
+    if (rootPos != string::npos && cntPos != string::npos) {
+        size_t arrayStart = rootPos + 8;
+        size_t arrayEnd = cntPos;
+        string arrayStr = line.substr(arrayStart, arrayEnd - arrayStart);
+        nums = parseArray(arrayStr);
+
+        size_t cntStart = cntPos + 9;
+        cnt = stoi(line.substr(cntStart));
+    }
+    // Format 2: Simple format - just array on first line, cnt on second
+    else {
+        // Check if there's a bracket
+        size_t bracketStart = line.find('[');
+        size_t bracketEnd = line.find(']');
+
+        if (bracketStart != string::npos && bracketEnd != string::npos) {
+            string arrayStr = line.substr(bracketStart + 1, bracketEnd - bracketStart - 1);
+            nums = parseArray(arrayStr);
+
+            // Look for cnt in the same line or next line
+            size_t cntPos2 = line.find("cnt");
+            if (cntPos2 != string::npos) {
+                size_t numStart = line.find_first_of("0123456789", cntPos2);
+                if (numStart != string::npos) {
+                    cnt = stoi(line.substr(numStart));
+                }
+            } else {
+                // Read cnt from next line
+                string line2;
+                if (getline(cin, line2)) {
+                    stringstream ss(line2);
+                    ss >> cnt;
+                }
+            }
+        }
+        // Format 3: Array elements on first line, cnt on second
+        else {
+            nums = parseArray(line);
+            string line2;
+            if (getline(cin, line2)) {
+                stringstream ss(line2);
+                ss >> cnt;
+            }
+        }
+    }
+
+    if (nums.empty() || cnt == 0) {
+        return 1;
     }
 
     // Build tree and find kth largest
