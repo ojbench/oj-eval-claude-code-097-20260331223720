@@ -1,6 +1,5 @@
 #include <iostream>
 #include <vector>
-#include <queue>
 #include <string>
 #include <sstream>
 
@@ -46,37 +45,16 @@ public:
     }
 };
 
-TreeNode* buildTreeFromLevelOrder(const vector<int>& nums) {
-    if (nums.empty() || nums[0] == -1) {
-        return nullptr;
+// Insert into BST
+TreeNode* insert(TreeNode* root, int val) {
+    if (root == nullptr) {
+        return new TreeNode(val);
     }
 
-    TreeNode* root = new TreeNode(nums[0]);
-    queue<TreeNode*> q;
-    q.push(root);
-    int i = 1;
-
-    while (!q.empty() && i < nums.size()) {
-        TreeNode* node = q.front();
-        q.pop();
-
-        // Left child
-        if (i < nums.size()) {
-            if (nums[i] != -1) {
-                node->left = new TreeNode(nums[i]);
-                q.push(node->left);
-            }
-            i++;
-        }
-
-        // Right child
-        if (i < nums.size()) {
-            if (nums[i] != -1) {
-                node->right = new TreeNode(nums[i]);
-                q.push(node->right);
-            }
-            i++;
-        }
+    if (val < root->val) {
+        root->left = insert(root->left, val);
+    } else {
+        root->right = insert(root->right, val);
     }
 
     return root;
@@ -207,8 +185,12 @@ int main() {
         return 0;
     }
 
-    // Build tree and find kth largest
-    TreeNode* root = buildTreeFromLevelOrder(nums);
+    // Build BST by inserting elements in order
+    TreeNode* root = nullptr;
+    for (int num : nums) {
+        root = insert(root, num);
+    }
+
     if (root == nullptr) {
         return 0;
     }
