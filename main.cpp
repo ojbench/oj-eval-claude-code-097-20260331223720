@@ -1,7 +1,9 @@
 #include <iostream>
 #include <vector>
+#include <queue>
 #include <string>
 #include <sstream>
+#include <algorithm>
 
 using namespace std;
 
@@ -22,17 +24,14 @@ private:
             return;
         }
 
-        // Visit right subtree first (larger values)
         reverseInorder(root->right, k);
 
-        // Visit current node
         count++;
         if (count == k) {
             result = root->val;
             return;
         }
 
-        // Visit left subtree (smaller values)
         reverseInorder(root->left, k);
     }
 
@@ -45,16 +44,37 @@ public:
     }
 };
 
-// Insert into BST
-TreeNode* insert(TreeNode* root, int val) {
-    if (root == nullptr) {
-        return new TreeNode(val);
+TreeNode* buildTreeFromLevelOrder(const vector<string>& tokens) {
+    if (tokens.empty() || tokens[0] == "null" || tokens[0] == "None") {
+        return nullptr;
     }
 
-    if (val < root->val) {
-        root->left = insert(root->left, val);
-    } else {
-        root->right = insert(root->right, val);
+    TreeNode* root = new TreeNode(stoi(tokens[0]));
+    queue<TreeNode*> q;
+    q.push(root);
+    int i = 1;
+
+    while (!q.empty() && i < tokens.size()) {
+        TreeNode* node = q.front();
+        q.pop();
+
+        // Left child
+        if (i < tokens.size()) {
+            if (tokens[i] != "null" && tokens[i] != "None" && tokens[i] != "NULL") {
+                node->left = new TreeNode(stoi(tokens[i]));
+                q.push(node->left);
+            }
+            i++;
+        }
+
+        // Right child
+        if (i < tokens.size()) {
+            if (tokens[i] != "null" && tokens[i] != "None" && tokens[i] != "NULL") {
+                node->right = new TreeNode(stoi(tokens[i]));
+                q.push(node->right);
+            }
+            i++;
+        }
     }
 
     return root;
@@ -69,128 +89,106 @@ void deleteTree(TreeNode* root) {
     delete root;
 }
 
-// Parse integers from a string, handling various formats
-vector<int> parseIntegers(const string& str) {
-    vector<int> result;
-    stringstream ss;
-    string cleaned;
+// Parse tokens (can be numbers or "null")
+vector<string> parseTokens(const string& str) {
+    vector<string> result;
+    stringstream ss(str);
+    string token;
+    bool inBracket = false;
 
-    // Remove brackets and other non-numeric characters (except minus, comma, space)
-    for (char c : str) {
-        if (isdigit(c) || c == '-' || c == ' ' || c == ',') {
-            cleaned += c;
+    for (size_t i = 0; i < str.length(); i++) {
+        char c = str[i];
+
+        if (c == '[') {
+            inBracket = true;
+            continue;
+        } else if (c == ']') {
+            if (!token.empty()) {
+                result.push_back(token);
+                token.clear();
+            }
+            break;
+        } else if (c == ',' || c == ' ' || c == '\t') {
+            if (!token.empty()) {
+                result.push_back(token);
+                token.clear();
+            }
+        } else {
+            token += c;
         }
     }
 
-    ss.str(cleaned);
-    string token;
-
-    // Try comma-separated first
-    if (cleaned.find(',') != string::npos) {
-        while (getline(ss, token, ',')) {
-            size_t start = token.find_first_not_of(" \t\n\r");
-            if (start != string::npos) {
-                size_t end = token.find_last_not_of(" \t\n\r");
-                token = token.substr(start, end - start + 1);
-                try {
-                    result.push_back(stoi(token));
-                } catch (...) {}
-            }
-        }
-    } else {
-        // Space-separated
-        int num;
-        while (ss >> num) {
-            result.push_back(num);
-        }
+    if (!token.empty()) {
+        result.push_back(token);
     }
 
     return result;
 }
 
+int extractInt(const string& str) {
+    stringstream ss;
+    for (char c : str) {
+        if (isdigit(c) || c == '-') {
+            ss << c;
+        }
+    }
+    int result;
+    if (ss >> result) {
+        return result;
+    }
+    return 0;
+}
+
 int main() {
     string line;
-
-    // Read first line
     if (!getline(cin, line)) {
         return 0;
     }
 
-    vector<int> nums;
+    vector<string> tokens;
     int cnt = 0;
 
-    // Check for "root = [...]" format
-    size_t rootPos = line.find("root");
-    size_t cntTextPos = line.find("cnt");
+    // Try to find array and cnt in the line
+    size_t bracketStart = line.find('[');
+    size_t bracketEnd = line.find(']');
 
-    if (rootPos != string::npos && cntTextPos != string::npos) {
-        // Extract array part (between root and cnt)
-        string arrayPart = line.substr(rootPos, cntTextPos - rootPos);
-        nums = parseIntegers(arrayPart);
+    if (bracketStart != string::npos && bracketEnd != string::npos) {
+        // Extract array content
+        string arrayContent = line.substr(bracketStart, bracketEnd - bracketStart + 1);
+        tokens = parseTokens(arrayContent);
 
-        // Extract cnt value
-        string cntPart = line.substr(cntTextPos);
-        vector<int> cntVec = parseIntegers(cntPart);
-        if (!cntVec.empty()) {
-            cnt = cntVec[0];
+        // Extract cnt
+        size_t cntPos = line.find("cnt", bracketEnd);
+        if (cntPos != string::npos) {
+            cnt = extractInt(line.substr(cntPos));
+        } else {
+            // Try to read cnt from next line
+            string line2;
+            if (getline(cin, line2)) {
+                cnt = extractInt(line2);
+            }
         }
     } else {
-        // Try to parse as array
-        nums = parseIntegers(line);
-
-        // If we found numbers and there's at least 2, last one might be cnt
-        if (nums.size() >= 2) {
-            // Check if there's a second line
-            string line2;
-            if (getline(cin, line2)) {
-                vector<int> cntVec = parseIntegers(line2);
-                if (!cntVec.empty()) {
-                    cnt = cntVec[0];
-                } else {
-                    // Maybe cnt is on same line, separated somehow
-                    // Last number is cnt, rest is array
-                    cnt = nums.back();
-                    nums.pop_back();
-                }
-            } else {
-                // No second line, assume last number is cnt
-                cnt = nums.back();
-                nums.pop_back();
-            }
-        } else if (nums.size() == 1) {
-            // Only one number on first line, must be array start or complete
-            string line2;
-            if (getline(cin, line2)) {
-                vector<int> secondLine = parseIntegers(line2);
-                if (secondLine.size() == 1) {
-                    // First line: single element array, second line: cnt
-                    cnt = secondLine[0];
-                } else {
-                    // Append to array
-                    nums.insert(nums.end(), secondLine.begin(), secondLine.end());
-                    // Try to read cnt
-                    string line3;
-                    if (getline(cin, line3)) {
-                        vector<int> thirdLine = parseIntegers(line3);
-                        if (!thirdLine.empty()) {
-                            cnt = thirdLine[0];
-                        }
-                    }
-                }
-            }
+        // No brackets, try to read numbers and cnt differently
+        tokens = parseTokens(line);
+        string line2;
+        if (getline(cin, line2)) {
+            cnt = extractInt(line2);
+        } else if (tokens.size() >= 2) {
+            // Last token might be cnt
+            try {
+                cnt = stoi(tokens.back());
+                tokens.pop_back();
+            } catch (...) {}
         }
     }
 
-    if (nums.empty() || cnt <= 0) {
+    if (tokens.empty() || cnt <= 0) {
         return 0;
     }
 
-    // Build BST by inserting elements in order
-    TreeNode* root = nullptr;
-    for (int num : nums) {
-        root = insert(root, num);
-    }
-
+    // Build tree
+    TreeNode* root = buildTreeFromLevelOrder(tokens);
     if (root == nullptr) {
         return 0;
     }
@@ -200,7 +198,6 @@ int main() {
 
     cout << result << endl;
 
-    // Clean up
     deleteTree(root);
 
     return 0;
